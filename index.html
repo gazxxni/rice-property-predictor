@@ -13,6 +13,7 @@
   --muted: #6b7280;
   --accent: #2563eb;
   --accent-soft: #dbeafe;
+  --warn: #b45309;
 }
 * { box-sizing: border-box; }
 body {
@@ -23,75 +24,29 @@ body {
   color: var(--text);
   line-height: 1.5;
 }
-.container {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 24px 20px 60px;
-}
-header h1 {
-  font-size: 1.6rem;
-  margin: 0 0 6px;
-}
-header p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 18px 20px;
-  margin-top: 18px;
-}
+.container { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
+header h1 { font-size: 1.6rem; margin: 0 0 6px; }
+header p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-top: 18px; }
 .controls { display: grid; grid-template-columns: 1fr; gap: 16px; }
-@media (min-width: 720px) {
-  .controls { grid-template-columns: 2fr 1fr 1fr; }
-}
-.control label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+@media (min-width: 720px) { .controls { grid-template-columns: 1fr 1fr 1fr; } }
+.control label.title {
+  display: block; font-size: 0.8rem; color: var(--muted);
+  margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em;
 }
 .slider-row { display: flex; align-items: center; gap: 12px; }
 .slider-row input[type=range] { flex: 1; }
 .slider-val {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 1.1rem;
-  min-width: 70px;
-  text-align: right;
+  font-variant-numeric: tabular-nums; font-weight: 600; font-size: 1.1rem;
+  min-width: 80px; text-align: right;
 }
-.radio-row { display: flex; gap: 6px; flex-wrap: wrap; }
-.radio-row label {
-  cursor: pointer;
-  border: 1px solid var(--border);
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: white;
-  text-transform: none;
-  letter-spacing: 0;
-  margin: 0;
-  font-size: 0.95rem;
-  color: var(--text);
-}
-.radio-row label.active {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-}
-.radio-row input[type=radio] { display: none; }
+.tick-hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; display: flex; justify-content: space-between; }
+.tick-hint .estimated { color: var(--warn); font-weight: 600; }
+
 select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.95rem; }
 
 .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-.metric {
-  background: var(--accent-soft);
-  border-radius: 10px;
-  padding: 14px 16px;
-}
+.metric { background: var(--accent-soft); border-radius: 10px; padding: 14px 16px; }
 .metric .label { color: var(--muted); font-size: 0.82rem; }
 .metric .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .metric .pi { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
@@ -108,22 +63,13 @@ summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
 .bulk-controls > div { display: flex; flex-direction: column; }
 .bulk-controls label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
 .bulk-controls input, .bulk-controls select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
-button {
-  background: var(--accent);
-  color: white;
-  border: 0;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
+button { background: var(--accent); color: white; border: 0; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
 button:hover { opacity: 0.9; }
 
 footer { margin-top: 40px; color: var(--muted); font-size: 0.82rem; text-align: center; }
-
 .loading { color: var(--muted); padding: 20px; text-align: center; }
 canvas { max-width: 100%; }
-.warn { color: #b45309; font-size: 0.85rem; }
+.warn { color: var(--warn); font-size: 0.85rem; }
 </style>
 </head>
 <body>
@@ -141,18 +87,33 @@ canvas { max-width: 100%; }
 <section class="card">
   <div class="controls">
     <div class="control">
-      <label>침지 온도</label>
+      <label class="title">침지 온도</label>
       <div class="slider-row">
-        <input type="range" id="temp" min="20" max="90" value="70" step="1">
+        <input type="range" id="temp" min="20" max="90" value="70" step="1" list="tempTicks">
         <div class="slider-val"><span id="tempVal">70</span> ℃</div>
       </div>
+      <datalist id="tempTicks"><option value="20"><option value="50"><option value="90"></datalist>
+      <div class="tick-hint">
+        <span>측정점: 20 / 50 / 90 ℃</span>
+        <span id="tempEst"></span>
+      </div>
     </div>
+
     <div class="control">
-      <label>냉동 조건</label>
-      <div class="radio-row" id="freezeRow"></div>
+      <label class="title">냉동 조건</label>
+      <div class="slider-row">
+        <input type="range" id="freeze" min="-80" max="-20" value="-40" step="1" list="freezeTicks">
+        <div class="slider-val"><span id="freezeVal">-40</span> ℃</div>
+      </div>
+      <datalist id="freezeTicks"><option value="-80"><option value="-40"><option value="-20"></datalist>
+      <div class="tick-hint">
+        <span>측정점: -80 / -40 / -20 ℃</span>
+        <span id="freezeEst"></span>
+      </div>
     </div>
+
     <div class="control">
-      <label>예측구간 신뢰수준</label>
+      <label class="title">예측구간 신뢰수준</label>
       <select id="alpha">
         <option value="0.20">80%</option>
         <option value="0.10">90%</option>
@@ -180,14 +141,7 @@ canvas { max-width: 100%; }
 <section class="card">
   <h3 style="margin-top:0">전체 물성 예측</h3>
   <table>
-    <thead>
-      <tr>
-        <th>물성</th>
-        <th>예측값</th>
-        <th>PI 하한</th>
-        <th>PI 상한</th>
-      </tr>
-    </thead>
+    <thead><tr><th>물성</th><th>예측값</th><th>PI 하한</th><th>PI 상한</th></tr></thead>
     <tbody id="resultBody"></tbody>
   </table>
 </section>
@@ -206,7 +160,7 @@ canvas { max-width: 100%; }
 
 <details class="card">
   <summary>📋 일괄 예측 (CSV 다운로드)</summary>
-  <p style="color:var(--muted); font-size:0.88rem;">아래 범위·간격으로 모든 freeze 조건에 대해 예측합니다.</p>
+  <p style="color:var(--muted); font-size:0.88rem;">아래 범위·간격으로 모든 측정 freeze 조건에 대해 예측합니다.</p>
   <div class="bulk-controls">
     <div><label>시작 (℃)</label><input type="number" id="bStart" value="20" min="20" max="90"></div>
     <div><label>끝 (℃)</label><input type="number" id="bEnd" value="90" min="20" max="90"></div>
@@ -220,8 +174,9 @@ canvas { max-width: 100%; }
 </div>
 
 <footer>
-  모델: 물성별 OLS, <code>y ~ T + T² + freeze + T:freeze</code>. Hardness/Gumminess/Chewiness는 log 변환.
-  <br>학습 데이터: 침지 온도 20/50/90℃ × 냉동 -20/-40/-80℃, 반복 약 47/온도.
+  모델: 물성별 OLS, <code>y ~ T + T² + freeze + freeze² + T:freeze + T:freeze²</code>.
+  Hardness/Gumminess/Chewiness는 log 변환.
+  <br>학습: 침지 온도 20/50/90℃ × 냉동 -20/-40/-80℃, 반복 약 47/온도. 측정점 사이값은 회귀식 기반 추정.
 </footer>
 
 </div>
