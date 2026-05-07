@@ -25,10 +25,8 @@ async function init() {
 function setupUI() {
   els.temp = document.getElementById('temp');
   els.tempVal = document.getElementById('tempVal');
-  els.tempEst = document.getElementById('tempEst');
   els.freeze = document.getElementById('freeze');
   els.freezeVal = document.getElementById('freezeVal');
-  els.freezeEst = document.getElementById('freezeEst');
   els.alpha = document.getElementById('alpha');
   els.rangeWarn = document.getElementById('rangeWarn');
   els.rehyVal = document.getElementById('rehyVal');
@@ -112,15 +110,6 @@ function update() {
   const F = +els.freeze.value;
   const alpha = +els.alpha.value;
   const tr = MODEL.training_range;
-  const measuredFreeze = MODEL.freeze_values_measured; // [-80, -40, -20]
-
-  // "측정점" 안내
-  els.tempEst.innerHTML = TEMP_MEASURED.includes(T)
-    ? '<span style="color:#16a34a">✓ 측정점</span>'
-    : '<span class="estimated">사이값 — 회귀 추정</span>';
-  els.freezeEst.innerHTML = measuredFreeze.includes(F)
-    ? '<span style="color:#16a34a">✓ 측정점</span>'
-    : '<span class="estimated">사이값 — 회귀 추정</span>';
 
   // 외삽 경고
   const outOfRange = (T < tr.temp_min || T > tr.temp_max || F < tr.freeze_min || F > tr.freeze_max);
