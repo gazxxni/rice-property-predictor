@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>쌀 물성 예측</title>
+<style>
+:root {
+  --bg: #fafafa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --text: #111827;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+               "Malgun Gothic", "Noto Sans KR", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+.container {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+header h1 {
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+}
+header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-top: 18px;
+}
+.controls { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 720px) {
+  .controls { grid-template-columns: 2fr 1fr 1fr; }
+}
+.control label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.slider-row { display: flex; align-items: center; gap: 12px; }
+.slider-row input[type=range] { flex: 1; }
+.slider-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.1rem;
+  min-width: 70px;
+  text-align: right;
+}
+.radio-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.radio-row label {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: white;
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.radio-row label.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.radio-row input[type=radio] { display: none; }
+select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.95rem; }
+
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.metric {
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.metric .label { color: var(--muted); font-size: 0.82rem; }
+.metric .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.metric .pi { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.93rem; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { background: #f3f4f6; font-weight: 600; }
+tbody tr:hover { background: #fafafa; }
+
+details { margin-top: 18px; }
+summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.bulk-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin: 10px 0; }
+.bulk-controls > div { display: flex; flex-direction: column; }
+.bulk-controls label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+.bulk-controls input, .bulk-controls select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+button {
+  background: var(--accent);
+  color: white;
+  border: 0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+button:hover { opacity: 0.9; }
+
+footer { margin-top: 40px; color: var(--muted); font-size: 0.82rem; text-align: center; }
+
+.loading { color: var(--muted); padding: 20px; text-align: center; }
+canvas { max-width: 100%; }
+.warn { color: #b45309; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>🌾 쌀 침지 온도 × 냉동조건 → 물성 예측</h1>
+  <p>OLS 회귀모델, 8개 물성, 95% 예측구간 동시 출력. 모델은 브라우저에서 실행됩니다.</p>
+</header>
+
+<div id="app" class="loading">모델 로딩 중...</div>
+
+<div id="main" style="display:none;">
+
+<section class="card">
+  <div class="controls">
+    <div class="control">
+      <label>침지 온도</label>
+      <div class="slider-row">
+        <input type="range" id="temp" min="20" max="90" value="70" step="1">
+        <div class="slider-val"><span id="tempVal">70</span> ℃</div>
+      </div>
+    </div>
+    <div class="control">
+      <label>냉동 조건</label>
+      <div class="radio-row" id="freezeRow"></div>
+    </div>
+    <div class="control">
+      <label>예측구간 신뢰수준</label>
+      <select id="alpha">
+        <option value="0.20">80%</option>
+        <option value="0.10">90%</option>
+        <option value="0.05" selected>95%</option>
+        <option value="0.01">99%</option>
+      </select>
+    </div>
+  </div>
+  <p id="rangeWarn" class="warn" style="display:none;"></p>
+
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="label">Rehydration rate (%)</div>
+      <div class="value" id="rehyVal">—</div>
+      <div class="pi" id="rehyPI">—</div>
+    </div>
+    <div class="metric">
+      <div class="label">Hardness</div>
+      <div class="value" id="hardVal">—</div>
+      <div class="pi" id="hardPI">—</div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h3 style="margin-top:0">전체 물성 예측</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>물성</th>
+        <th>예측값</th>
+        <th>PI 하한</th>
+        <th>PI 상한</th>
+      </tr>
+    </thead>
+    <tbody id="resultBody"></tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h3 style="margin-top:0">온도별 예측 추세 (선택 freeze 고정)</h3>
+  <div style="margin-bottom:8px;">
+    <label style="font-size:0.85rem; color:var(--muted);">물성 선택</label>
+    <select id="chartProp"></select>
+  </div>
+  <canvas id="chart" height="280"></canvas>
+  <p style="color:var(--muted); font-size:0.8rem; margin-top:6px;">
+    음영 = 예측구간, 빨간 점 = 실험 평균값.
+  </p>
+</section>
+
+<details class="card">
+  <summary>📋 일괄 예측 (CSV 다운로드)</summary>
+  <p style="color:var(--muted); font-size:0.88rem;">아래 범위·간격으로 모든 freeze 조건에 대해 예측합니다.</p>
+  <div class="bulk-controls">
+    <div><label>시작 (℃)</label><input type="number" id="bStart" value="20" min="20" max="90"></div>
+    <div><label>끝 (℃)</label><input type="number" id="bEnd" value="90" min="20" max="90"></div>
+    <div><label>간격 (℃)</label><input type="number" id="bStep" value="10" min="1"></div>
+    <div><label>물성</label><select id="bProp"></select></div>
+    <button id="bRun">생성 + CSV 다운로드</button>
+  </div>
+  <div id="bulkPreview" style="max-height:280px; overflow:auto;"></div>
+</details>
+
+</div>
+
+<footer>
+  모델: 물성별 OLS, <code>y ~ T + T² + freeze + T:freeze</code>. Hardness/Gumminess/Chewiness는 log 변환.
+  <br>학습 데이터: 침지 온도 20/50/90℃ × 냉동 -20/-40/-80℃, 반복 약 47/온도.
+</footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

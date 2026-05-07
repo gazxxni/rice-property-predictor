@@ -1,0 +1,15 @@
+# 원본 데이터/분석 노트북/채팅은 비공개로 유지
+TPA*.xlsx
+*.ipynb
+채팅
+*.pkl
+DEPLOY.md
+app.py
+requirements.txt
+_*.py
+_*.js
+.claude/
+.DS_Store
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
