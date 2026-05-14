@@ -45,7 +45,8 @@ header p { margin: 0; color: var(--muted); font-size: 0.92rem; }
 
 select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.95rem; }
 
-.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+@media (max-width: 720px) { .metric-grid { grid-template-columns: 1fr; } }
 .metric { background: var(--accent-soft); border-radius: 10px; padding: 14px 16px; }
 .metric .label { color: var(--muted); font-size: 0.82rem; }
 .metric .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
@@ -129,15 +130,12 @@ canvas { max-width: 100%; }
       <div class="value" id="hardVal">—</div>
       <div class="pi" id="hardPI">—</div>
     </div>
+    <div class="metric">
+      <div class="label">Cohesiveness</div>
+      <div class="value" id="cohVal">—</div>
+      <div class="pi" id="cohPI">—</div>
+    </div>
   </div>
-</section>
-
-<section class="card">
-  <h3 style="margin-top:0">전체 물성 예측</h3>
-  <table>
-    <thead><tr><th>물성</th><th>예측값</th><th>PI 하한</th><th>PI 상한</th></tr></thead>
-    <tbody id="resultBody"></tbody>
-  </table>
 </section>
 
 <section class="card">

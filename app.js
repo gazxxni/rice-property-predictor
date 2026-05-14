@@ -33,7 +33,8 @@ function setupUI() {
   els.rehyPI = document.getElementById('rehyPI');
   els.hardVal = document.getElementById('hardVal');
   els.hardPI = document.getElementById('hardPI');
-  els.resultBody = document.getElementById('resultBody');
+  els.cohVal = document.getElementById('cohVal');
+  els.cohPI = document.getElementById('cohPI');
   els.chartProp = document.getElementById('chartProp');
   els.bProp = document.getElementById('bProp');
   els.bRun = document.getElementById('bRun');
@@ -126,14 +127,9 @@ function update() {
   const hard = predict('Hardness', T, F, alpha);
   els.hardVal.textContent = hard.mean.toFixed(0);
   els.hardPI.textContent = `PI ${hard.lo.toFixed(0)} – ${hard.hi.toFixed(0)}`;
-
-  els.resultBody.innerHTML = '';
-  MODEL.props.forEach(p => {
-    const r = predict(p, T, F, alpha);
-    const tr2 = document.createElement('tr');
-    tr2.innerHTML = `<td>${p}</td><td>${fmt(r.mean)}</td><td>${fmt(r.lo)}</td><td>${fmt(r.hi)}</td>`;
-    els.resultBody.appendChild(tr2);
-  });
+  const coh = predict('Cohesiveness', T, F, alpha);
+  els.cohVal.textContent = coh.mean.toFixed(3);
+  els.cohPI.textContent = `PI ${coh.lo.toFixed(2)} – ${coh.hi.toFixed(2)}`;
 
   drawChart();
 }
