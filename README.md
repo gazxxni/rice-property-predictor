@@ -4,18 +4,16 @@
 
 **🔗 실시간 사용:** https://gazxxni.github.io/rice-property-predictor
 
-> 위 링크는 GitHub Pages 활성화 후 약 1–2분 뒤 접근 가능.
-
 ## 모델
 
 물성별 회귀:
 
 ```
-y ~ T + T² + freeze + T:freeze
+y ~ T + T² + freeze + freeze² + T:freeze + T:freeze²
 ```
 
-- **로그 변환 적용:** Hardness, Gumminess, Chewiness (양수·산포 큼)
-- **원값:** 나머지 (Adhesiveness는 음수라 변환 안 함)
+- **예측 물성:** Hardness, Cohesiveness, Rehydration
+- **로그 변환 적용:** Hardness (양수·산포 큼)
 - 예측구간(95% PI): `statsmodels` 기준 새 관측치 분포 — 같은 조건 새 실험 시 값이 들어갈 범위
 
 ## 검증 (Leave-One-Temperature-Out)
@@ -25,15 +23,16 @@ y ~ T + T² + freeze + T:freeze
 | 물성 | nRMSE | 판단 |
 |---|---:|---|
 | Rehydration | 0.08 | 우수 |
-| Springiness | 0.28 | — |
-| Cohesiveness | 0.53 | 50℃ 피크 미반영 |
-| Gumminess | 0.58 | 변동 큼 |
-| Resilience | 0.71 | 50℃ 피크 |
-| Chewiness | 0.72 | 변동 큼 |
-| Hardness | 0.74 | 변동 큼 |
-| Adhesiveness | 1.28 | 음수값 |
+| Cohesiveness | 0.55 | 50℃ 피크 일부 미반영 |
+| Hardness | 0.75 | 반복 변동 큼 — 평균 추세만 신뢰 |
 
 → Rehydration 외 물성은 반드시 예측구간과 함께 봐야 함.
+
+## 데이터셋
+
+- 침지 온도 3수준 × 냉동 3수준 = 9개 조건
+- 조건당 약 14–17 반복 측정
+- 총 136 측정 (MAD 기준 이상치 정제)
 
 ## 파일
 

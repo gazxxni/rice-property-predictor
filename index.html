@@ -77,7 +77,7 @@ canvas { max-width: 100%; }
 
 <header>
   <h1>🌾 쌀 침지 온도 × 냉동조건 → 물성 예측</h1>
-  <p>OLS 회귀모델, 8개 물성, 95% 예측구간 동시 출력. 모델은 브라우저에서 실행됩니다.</p>
+  <p>OLS 회귀모델, 3개 물성, 95% 예측구간 동시 출력. 모델은 브라우저에서 실행됩니다.</p>
 </header>
 
 <div id="app" class="loading">모델 로딩 중...</div>
@@ -170,7 +170,7 @@ canvas { max-width: 100%; }
 <footer>
   모델: 물성별 OLS, <code>y ~ T + T² + freeze + freeze² + T:freeze + T:freeze²</code>.
   Hardness/Gumminess/Chewiness는 log 변환.
-  <br>학습: 침지 온도 20/50/90℃ × 냉동 -20/-40/-80℃, 반복 약 47/온도. 측정점 사이값은 회귀식 기반 추정.
+  <br>학습: 침지 온도 20/50/90℃ × 냉동 -20/-40/-80℃, 총 136 측정 (MAD 기준 이상치 정제). 측정점 사이값은 회귀식 기반 추정.
 </footer>
 
 </div>
