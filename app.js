@@ -35,6 +35,12 @@ function setupUI() {
   els.hardPI = document.getElementById('hardPI');
   els.cohVal = document.getElementById('cohVal');
   els.cohPI = document.getElementById('cohPI');
+  els.rehyBadge = document.getElementById('rehyBadge');
+  els.hardBadge = document.getElementById('hardBadge');
+  els.cohBadge = document.getElementById('cohBadge');
+  els.targetGrid = document.getElementById('targetGrid');
+  els.revRun = document.getElementById('revRun');
+  els.revResults = document.getElementById('revResults');
   els.chartProp = document.getElementById('chartProp');
   els.bProp = document.getElementById('bProp');
   els.bRun = document.getElementById('bRun');
@@ -57,6 +63,33 @@ function setupUI() {
   els.alpha.addEventListener('change', update);
   els.chartProp.addEventListener('change', drawChart);
   els.bRun.addEventListener('click', runBulk);
+
+  // 신뢰도 배지 한 번 설정
+  const badgeText = { high: '🟢 우수', medium: '🟡 보통', low: '🔴 변동 큼' };
+  const setBadge = (el, prop) => {
+    const g = MODEL.loto[prop].grade;
+    el.className = `badge ${g}`;
+    el.textContent = badgeText[g];
+    el.title = `LOTO nRMSE ${MODEL.loto[prop].avg_nRMSE.toFixed(3)}`;
+  };
+  setBadge(els.rehyBadge, 'Rehydration');
+  setBadge(els.hardBadge, 'Hardness');
+  setBadge(els.cohBadge, 'Cohesiveness');
+
+  // 역방향 예측 입력 행 만들기
+  MODEL.props.forEach(p => {
+    const def = MODEL.cell_means[p][`50:-40`] ?? MODEL.prop_stats.mean[p];
+    const step = Math.abs(def) < 1 ? 0.01 : (Math.abs(def) < 50 ? 0.5 : 5);
+    const row = document.createElement('div');
+    row.className = 'target-row';
+    row.innerHTML = `
+      <input type="checkbox" id="use_${p}" ${p === 'Rehydration' ? 'checked' : ''}>
+      <label for="use_${p}">${p}</label>
+      <input type="number" id="tgt_${p}" value="${def.toFixed(Math.abs(def) < 1 ? 3 : (Math.abs(def) < 50 ? 2 : 0))}" step="${step}">
+    `;
+    els.targetGrid.appendChild(row);
+  });
+  els.revRun.addEventListener('click', runReverse);
 }
 
 // ===== 디자인 행렬 행 빌더 =====
@@ -177,6 +210,71 @@ function drawChart() {
       scales: { x: { type: 'linear', title: { display: true, text: 'Soaking T (℃)' } }, y: { title: { display: true, text: prop } } },
     },
   });
+}
+
+function runReverse() {
+  const targets = {};
+  MODEL.props.forEach(p => {
+    const use = document.getElementById(`use_${p}`).checked;
+    if (use) targets[p] = +document.getElementById(`tgt_${p}`).value;
+  });
+  if (Object.keys(targets).length === 0) {
+    els.revResults.innerHTML = '<p style="color:#b91c1c">하나 이상의 물성을 선택하고 목표값을 입력하세요.</p>';
+    return;
+  }
+
+  const tr = MODEL.training_range;
+  const candidates = [];
+  // 그리드 서치 (T 1℃ 간격, F 1℃ 간격)
+  for (let T = tr.temp_min; T <= tr.temp_max; T += 1) {
+    for (let F = tr.freeze_min; F <= tr.freeze_max; F += 1) {
+      let dist = 0;
+      const preds = {};
+      for (const [p, target] of Object.entries(targets)) {
+        const r = predict(p, T, F, 0.05);
+        preds[p] = r;
+        // 정규화 거리 — 물성 표준편차로 나눠 단위 차이 제거
+        const sd = MODEL.prop_stats.std[p] || 1;
+        dist += Math.pow((r.mean - target) / sd, 2);
+      }
+      candidates.push({ T, F, dist: Math.sqrt(dist), preds });
+    }
+  }
+  candidates.sort((a, b) => a.dist - b.dist);
+
+  // 상위 3개 표시 (서로 좀 다른 조건만 — 1℃ 차이는 거의 중복이라 5℃ 이상 다른 것 우선)
+  const picks = [candidates[0]];
+  for (const c of candidates.slice(1)) {
+    if (picks.length >= 3) break;
+    const farFromAll = picks.every(p => Math.abs(p.T - c.T) >= 5 || Math.abs(p.F - c.F) >= 5);
+    if (farFromAll) picks.push(c);
+  }
+
+  let html = '';
+  picks.forEach((c, i) => {
+    const klass = i === 0 ? 'rev-card' : 'rev-card alt';
+    const label = i === 0 ? '🥇 최적' : `대안 ${i}`;
+    let predHtml = '';
+    for (const [p, r] of Object.entries(c.preds)) {
+      const tgt = targets[p];
+      const fmtN = (v) => Math.abs(v) >= 100 ? v.toFixed(0) : (Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(3));
+      predHtml += `<span>${p}: <b>${fmtN(r.mean)}</b> <span style="color:var(--muted)">(목표 ${fmtN(tgt)}, PI ${fmtN(r.lo)}–${fmtN(r.hi)})</span></span>`;
+    }
+    html += `
+      <div class="${klass}">
+        <div class="head">
+          <div class="cond">${label}: T = ${c.T}℃, freeze = ${c.F}℃</div>
+          <div class="score">정규화 거리 ${c.dist.toFixed(3)}</div>
+        </div>
+        <div class="preds">${predHtml}</div>
+      </div>`;
+  });
+  els.revResults.innerHTML = html;
+
+  // 슬라이더도 1위 결과로 이동
+  els.temp.value = picks[0].T; els.tempVal.textContent = picks[0].T;
+  els.freeze.value = picks[0].F; els.freezeVal.textContent = picks[0].F;
+  update();
 }
 
 function runBulk() {
