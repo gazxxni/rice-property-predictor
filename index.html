@@ -103,8 +103,14 @@ button.btn-orange { background: var(--orange); }
 button.btn-ghost { background: white; color: var(--text); border: 1px solid var(--border); }
 
 /* ===== Hetbahn similarity ===== */
+.sim-layout {
+  display: grid; grid-template-columns: 1fr;
+  gap: 18px; align-items: center; margin-top: 12px;
+}
+@media (min-width: 720px) { .sim-layout { grid-template-columns: 1fr 360px; } }
+.sim-right { max-width: 360px; margin: 0 auto; }
 .sim-grid { display: grid; gap: 10px; }
-.sim-row { display: grid; grid-template-columns: 150px 1fr 60px; align-items: center; gap: 10px; font-size: 0.9rem; }
+.sim-row { display: grid; grid-template-columns: 120px 1fr 50px; align-items: center; gap: 10px; font-size: 0.9rem; }
 .sim-bar { background: #e5e7eb; border-radius: 999px; height: 12px; overflow: hidden; }
 .sim-fill { height: 100%; border-radius: 999px; transition: width 0.3s; }
 .sim-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -264,12 +270,15 @@ canvas { max-width: 100%; }
       현재 입력 조건의 예측값을 햇반 평균 물성과 비교합니다.
       햇반: Hardness <b>487.658 g</b>, Cohesiveness <b>0.47011</b>.
     </p>
-    <div class="sim-grid" id="simGrid"></div>
-
-    <div style="max-width: 420px; margin: 18px auto 4px;">
-      <canvas id="radarChart" height="320"></canvas>
+    <div class="sim-layout">
+      <div class="sim-left">
+        <div class="sim-grid" id="simGrid"></div>
+      </div>
+      <div class="sim-right">
+        <canvas id="radarChart" height="280"></canvas>
+      </div>
     </div>
-    <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin: 0;">
+    <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin: 8px 0 0;">
       Hetbahn은 Hardness·Cohesiveness만 공식 기준값 존재 — Rehydration은 데이터셋 평균(~232%)을 참조선으로 사용.
     </p>
   </section>
