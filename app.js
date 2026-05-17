@@ -1,5 +1,4 @@
 // 동결건조밥 물성·재수화율 예측 — 브라우저 사이드 OLS 추론
-// 모델: y ~ RT + RT² + FT + FT² + RT:FT + RT:FT² (T=temp 변수명 유지)
 
 let MODEL = null;
 let chart = null;
@@ -22,6 +21,21 @@ async function init() {
 }
 
 function setupUI() {
+  // 탭 스위치
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      // 역예측 탭으로 처음 들어갈 때 자동 실행
+      if (btn.dataset.tab === 'reverse' && !els.revAutoRun) {
+        runReverse();
+        els.revAutoRun = true;
+      }
+    });
+  });
+
   els.temp = document.getElementById('temp');
   els.tempVal = document.getElementById('tempVal');
   els.freeze = document.getElementById('freeze');
@@ -46,16 +60,16 @@ function setupUI() {
   els.bRun = document.getElementById('bRun');
   els.bulkPreview = document.getElementById('bulkPreview');
 
-  els.targetGrid = document.getElementById('targetGrid');
-  els.matchHetbahn = document.getElementById('matchHetbahn');
+  els.bestMatch = document.getElementById('bestMatch');
+  els.topTableBody = document.getElementById('topTableBody');
   els.revRun = document.getElementById('revRun');
-  els.revResults = document.getElementById('revResults');
+  els.matchHetbahn = document.getElementById('matchHetbahn');
+  els.highRehy = document.getElementById('highRehy');
 
   const tr = MODEL.training_range;
   els.temp.min = tr.temp_min; els.temp.max = tr.temp_max;
   els.freeze.min = tr.freeze_min; els.freeze.max = tr.freeze_max;
 
-  // 차트/일괄 예측 물성 선택 — 표시명: Rehydration → "Rehydration rate"
   const labelOf = p => p === 'Rehydration' ? 'Rehydration rate' : p;
   MODEL.props.forEach(p => {
     const opt = document.createElement('option');
@@ -65,26 +79,25 @@ function setupUI() {
     els.bProp.appendChild(opt.cloneNode(true));
   });
 
-  // 입력 이벤트
   els.temp.addEventListener('input', () => { els.tempVal.textContent = els.temp.value; update(); });
   els.freeze.addEventListener('input', () => { els.freezeVal.textContent = els.freeze.value; update(); });
   els.alpha.addEventListener('change', update);
   els.chartProp.addEventListener('change', drawChart);
   els.bRun.addEventListener('click', runBulk);
 
-  // 신뢰도 배지
-  const badgeText = { high: '🟢 우수', medium: '🟡 보통', low: '🔴 변동 큼' };
+  // 이분 신뢰도 배지 (좋음/나쁨)
   const setBadge = (el, prop) => {
-    const g = MODEL.loto[prop].grade;
-    el.className = `badge ${g}`;
-    el.textContent = badgeText[g];
-    el.title = `LOTO nRMSE ${MODEL.loto[prop].avg_nRMSE.toFixed(3)}`;
+    const nrmse = MODEL.loto[prop].avg_nRMSE;
+    const good = nrmse < 0.30;
+    el.className = `badge ${good ? 'good' : 'bad'}`;
+    el.textContent = good ? '좋음' : '나쁨';
+    el.title = `LOTO nRMSE ${nrmse.toFixed(3)}`;
   };
   setBadge(els.hardBadge, 'Hardness');
   setBadge(els.cohBadge, 'Cohesiveness');
   setBadge(els.rehyBadge, 'Rehydration');
 
-  // 햇반 유사도 행 구성
+  // 햇반 유사도 행
   const simProps = ['Hardness', 'Cohesiveness'];
   simProps.forEach(p => {
     const row = document.createElement('div');
@@ -96,7 +109,6 @@ function setupUI() {
     `;
     els.simGrid.appendChild(row);
   });
-  // Overall
   const overall = document.createElement('div');
   overall.className = 'sim-row';
   overall.innerHTML = `
@@ -106,23 +118,40 @@ function setupUI() {
   `;
   els.simGrid.appendChild(overall);
 
-  // 역예측 — Hardness, Cohesiveness, Rehydration rate 순
-  const orderedProps = ['Hardness', 'Cohesiveness', 'Rehydration'];
-  orderedProps.forEach(p => {
-    const def = MODEL.cell_means[p][`50:-40`] ?? MODEL.prop_stats.mean[p];
-    const step = Math.abs(def) < 1 ? 0.01 : (Math.abs(def) < 50 ? 0.5 : 5);
-    const decimals = Math.abs(def) < 1 ? 3 : (Math.abs(def) < 50 ? 2 : 0);
-    const row = document.createElement('div');
-    row.className = 'target-row';
-    row.innerHTML = `
-      <input type="checkbox" id="use_${p}" ${p === 'Rehydration' ? 'checked' : ''}>
-      <label for="use_${p}">${labelOf(p)}</label>
-      <input type="number" id="tgt_${p}" value="${def.toFixed(decimals)}" step="${step}">
-    `;
-    els.targetGrid.appendChild(row);
+  // 역예측 입력 use 토글 연동
+  ['Hardness', 'Cohesiveness', 'Rehydration'].forEach(p => {
+    const useEl = document.getElementById(`use_${p}`);
+    const tgtEl = document.getElementById(`tgt_${p}`);
+    useEl.addEventListener('change', () => { tgtEl.disabled = !useEl.checked; });
   });
+
   els.revRun.addEventListener('click', runReverse);
-  els.matchHetbahn.addEventListener('click', matchHetbahn);
+  els.matchHetbahn.addEventListener('click', () => {
+    document.getElementById('use_Hardness').checked = true;
+    document.getElementById('tgt_Hardness').value = MODEL.hetbahn.Hardness.toFixed(2);
+    document.getElementById('tgt_Hardness').disabled = false;
+
+    document.getElementById('use_Cohesiveness').checked = true;
+    document.getElementById('tgt_Cohesiveness').value = MODEL.hetbahn.Cohesiveness.toFixed(3);
+    document.getElementById('tgt_Cohesiveness').disabled = false;
+
+    document.getElementById('use_Rehydration').checked = false;
+    document.getElementById('tgt_Rehydration').disabled = true;
+    runReverse();
+  });
+  els.highRehy.addEventListener('click', () => {
+    // 데이터셋 최대 재수화율 근처
+    document.getElementById('use_Rehydration').checked = true;
+    document.getElementById('tgt_Rehydration').value = 280;
+    document.getElementById('tgt_Rehydration').disabled = false;
+
+    document.getElementById('use_Hardness').checked = false;
+    document.getElementById('tgt_Hardness').disabled = true;
+
+    document.getElementById('use_Cohesiveness').checked = false;
+    document.getElementById('tgt_Cohesiveness').disabled = true;
+    runReverse();
+  });
 }
 
 // ===== 디자인 행렬 행 빌더 =====
@@ -163,13 +192,6 @@ function predict(prop, T, F, alpha) {
   return { mean, lo, hi };
 }
 
-// ===== UI 갱신 =====
-function fmt(v) {
-  if (Math.abs(v) >= 100) return v.toFixed(0);
-  if (Math.abs(v) >= 10) return v.toFixed(1);
-  return v.toFixed(2);
-}
-
 const TEMP_MEASURED = [20, 50, 90];
 
 function update() {
@@ -198,14 +220,11 @@ function update() {
   els.rehyVal.textContent = rehy.mean.toFixed(2);
   els.rehyPI.textContent = `PI ${rehy.lo.toFixed(1)} – ${rehy.hi.toFixed(1)}`;
 
-  // 햇반 유사도 갱신
   updateSimilarity({ Hardness: hard.mean, Cohesiveness: coh.mean });
-
   drawChart();
 }
 
 function similarityPct(predicted, target, scale) {
-  // 표준편차로 정규화한 차이를 0~1 유사도로
   const d = Math.abs(predicted - target) / scale;
   return Math.max(0, Math.min(1, 1 - d));
 }
@@ -224,9 +243,9 @@ function updateSimilarity(predicted) {
     document.getElementById(`sim_fill_${p}`).style.background = colorFor(sims[p]);
     document.getElementById(`sim_val_${p}`).textContent = `${(sims[p] * 100).toFixed(0)}%`;
   });
-  document.getElementById(`sim_fill_overall`).style.width = `${(overall * 100).toFixed(0)}%`;
-  document.getElementById(`sim_fill_overall`).style.background = colorFor(overall);
-  document.getElementById(`sim_val_overall`).textContent = `${(overall * 100).toFixed(0)}%`;
+  document.getElementById('sim_fill_overall').style.width = `${(overall * 100).toFixed(0)}%`;
+  document.getElementById('sim_fill_overall').style.background = colorFor(overall);
+  document.getElementById('sim_val_overall').textContent = `${(overall * 100).toFixed(0)}%`;
 }
 
 function drawChart() {
@@ -278,26 +297,15 @@ function drawChart() {
 }
 
 // ===== 역예측 =====
-function matchHetbahn() {
-  document.getElementById('use_Hardness').checked = true;
-  document.getElementById('tgt_Hardness').value = MODEL.hetbahn.Hardness.toFixed(2);
-  document.getElementById('use_Cohesiveness').checked = true;
-  document.getElementById('tgt_Cohesiveness').value = MODEL.hetbahn.Cohesiveness.toFixed(3);
-  // Rehydration은 햇반 기준 없음 — 해제
-  document.getElementById('use_Rehydration').checked = false;
-  // 자동으로 검색 실행
-  runReverse();
-}
-
 function runReverse() {
-  const labelOf = p => p === 'Rehydration' ? 'Rehydration rate' : p;
   const targets = {};
-  MODEL.props.forEach(p => {
+  ['Hardness', 'Cohesiveness', 'Rehydration'].forEach(p => {
     const use = document.getElementById(`use_${p}`).checked;
     if (use) targets[p] = +document.getElementById(`tgt_${p}`).value;
   });
   if (Object.keys(targets).length === 0) {
-    els.revResults.innerHTML = '<p style="color:#b91c1c">하나 이상의 물성을 선택하고 목표값을 입력하세요.</p>';
+    els.bestMatch.innerHTML = '<p style="color:#b91c1c">하나 이상의 물성을 선택하세요.</p>';
+    els.topTableBody.innerHTML = '';
     return;
   }
 
@@ -307,47 +315,79 @@ function runReverse() {
     for (let F = tr.freeze_min; F <= tr.freeze_max; F += 1) {
       let dist = 0;
       const preds = {};
+      // 모든 물성 예측 (표시용)
+      for (const p of MODEL.props) {
+        preds[p] = predict(p, T, F, 0.05);
+      }
+      // 선택된 물성만 거리 계산
       for (const [p, target] of Object.entries(targets)) {
-        const r = predict(p, T, F, 0.05);
-        preds[p] = r;
         const sd = MODEL.prop_stats.std[p] || 1;
-        dist += Math.pow((r.mean - target) / sd, 2);
+        dist += Math.pow((preds[p].mean - target) / sd, 2);
       }
       candidates.push({ T, F, dist: Math.sqrt(dist), preds });
     }
   }
   candidates.sort((a, b) => a.dist - b.dist);
 
+  // 상위 5개 — 서로 5℃ 이상 다른 조건만
   const picks = [candidates[0]];
   for (const c of candidates.slice(1)) {
-    if (picks.length >= 3) break;
+    if (picks.length >= 5) break;
     const farFromAll = picks.every(p => Math.abs(p.T - c.T) >= 5 || Math.abs(p.F - c.F) >= 5);
     if (farFromAll) picks.push(c);
   }
 
-  let html = '';
-  picks.forEach((c, i) => {
-    const klass = i === 0 ? 'rev-card' : 'rev-card alt';
-    const label = i === 0 ? '🥇 최적' : `대안 ${i}`;
-    let predHtml = '';
-    for (const [p, r] of Object.entries(c.preds)) {
-      const tgt = targets[p];
-      const fmtN = (v) => Math.abs(v) >= 100 ? v.toFixed(0) : (Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(3));
-      predHtml += `<span>${labelOf(p)}: <b>${fmtN(r.mean)}</b> <span style="color:var(--muted)">(목표 ${fmtN(tgt)}, PI ${fmtN(r.lo)}–${fmtN(r.hi)})</span></span>`;
-    }
-    html += `
-      <div class="${klass}">
-        <div class="head">
-          <div class="cond">${label}: Rehydration Temp. = ${c.T}℃, Freeze Temp. = ${c.F}℃</div>
-          <div class="score">정규화 거리 ${c.dist.toFixed(3)}</div>
+  // Best Match 카드
+  const best = picks[0];
+  els.bestMatch.innerHTML = `
+    <div class="best-match">
+      <div class="title">Best Match</div>
+      <div class="cond-row">
+        <div class="cond-item">
+          <div class="cap">Freezing Temp.</div>
+          <div class="val">${best.F}℃</div>
         </div>
-        <div class="preds">${predHtml}</div>
-      </div>`;
-  });
-  els.revResults.innerHTML = html;
+        <div class="cond-item">
+          <div class="cap">Rehydration Temp.</div>
+          <div class="val">${best.T}℃</div>
+        </div>
+      </div>
+      <div class="props-row">
+        <div class="prop-item">
+          <div class="cap">Hardness (g)</div>
+          <div class="val">${best.preds.Hardness.mean.toFixed(0)}</div>
+        </div>
+        <div class="prop-item">
+          <div class="cap">Cohesiveness</div>
+          <div class="val">${best.preds.Cohesiveness.mean.toFixed(3)}</div>
+        </div>
+        <div class="prop-item">
+          <div class="cap">Rehydration (%)</div>
+          <div class="val">${best.preds.Rehydration.mean.toFixed(1)}</div>
+        </div>
+      </div>
+    </div>
+  `;
 
-  els.temp.value = picks[0].T; els.tempVal.textContent = picks[0].T;
-  els.freeze.value = picks[0].F; els.freezeVal.textContent = picks[0].F;
+  // Top 5 표
+  let rows = '';
+  picks.forEach((c, i) => {
+    rows += `
+      <tr>
+        <td class="rank">#${i + 1}</td>
+        <td>${c.F}℃</td>
+        <td>${c.T}℃</td>
+        <td>${c.preds.Hardness.mean.toFixed(0)}</td>
+        <td>${c.preds.Cohesiveness.mean.toFixed(3)}</td>
+        <td>${c.preds.Rehydration.mean.toFixed(1)}</td>
+      </tr>
+    `;
+  });
+  els.topTableBody.innerHTML = rows;
+
+  // 예측 탭 슬라이더도 동기화
+  els.temp.value = best.T; els.tempVal.textContent = best.T;
+  els.freeze.value = best.F; els.freezeVal.textContent = best.F;
   update();
 }
 
