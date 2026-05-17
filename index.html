@@ -107,8 +107,8 @@ button.btn-ghost { background: white; color: var(--text); border: 1px solid var(
   display: grid; grid-template-columns: 1fr;
   gap: 18px; align-items: center; margin-top: 12px;
 }
-@media (min-width: 720px) { .sim-layout { grid-template-columns: 1fr 360px; } }
-.sim-right { max-width: 360px; margin: 0 auto; }
+@media (min-width: 720px) { .sim-layout { grid-template-columns: 320px 1fr; } }
+.sim-right { width: 100%; max-width: 560px; margin: 0 auto; }
 .sim-grid { display: grid; gap: 10px; }
 .sim-row { display: grid; grid-template-columns: 120px 1fr 50px; align-items: center; gap: 10px; font-size: 0.9rem; }
 .sim-bar { background: #e5e7eb; border-radius: 999px; height: 12px; overflow: hidden; }
@@ -275,7 +275,7 @@ canvas { max-width: 100%; }
         <div class="sim-grid" id="simGrid"></div>
       </div>
       <div class="sim-right">
-        <canvas id="radarChart" height="280"></canvas>
+        <canvas id="radarChart" height="420"></canvas>
       </div>
     </div>
     <p style="text-align:center; color:var(--muted); font-size:0.78rem; margin: 8px 0 0;">
