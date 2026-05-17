@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>쌀 물성 예측</title>
+<title>냉동 및 재수화 온도에 따른 동결건조밥의 물성 및 재수화율 예측 모델</title>
 <style>
 :root {
   --bg: #fafafa;
@@ -13,6 +13,8 @@
   --muted: #6b7280;
   --accent: #2563eb;
   --accent-soft: #dbeafe;
+  --orange: #f97316;
+  --orange-soft: #fed7aa;
   --warn: #b45309;
 }
 * { box-sizing: border-box; }
@@ -25,9 +27,10 @@ body {
   line-height: 1.5;
 }
 .container { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
-header h1 { font-size: 1.6rem; margin: 0 0 6px; }
+header h1 { font-size: 1.4rem; margin: 0 0 6px; line-height: 1.35; }
 header p { margin: 0; color: var(--muted); font-size: 0.92rem; }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-top: 18px; }
+.card h3 { margin-top: 0; display: flex; align-items: center; gap: 6px; font-size: 1.05rem; }
 .controls { display: grid; grid-template-columns: 1fr; gap: 16px; }
 @media (min-width: 720px) { .controls { grid-template-columns: 1fr 1fr 1fr; } }
 .control label.title {
@@ -41,7 +44,6 @@ header p { margin: 0; color: var(--muted); font-size: 0.92rem; }
   min-width: 80px; text-align: right;
 }
 .tick-hint { font-size: 0.75rem; color: var(--muted); margin-top: 4px; display: flex; justify-content: space-between; }
-.tick-hint .estimated { color: var(--warn); font-weight: 600; }
 
 select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-size: 0.95rem; }
 
@@ -58,6 +60,27 @@ select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
 .badge.high { background: #dcfce7; color: #15803d; }
 .badge.medium { background: #fef3c7; color: #b45309; }
 .badge.low { background: #fee2e2; color: #b91c1c; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.93rem; }
+th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { background: #f3f4f6; font-weight: 600; }
+tbody tr:hover { background: #fafafa; }
+
+details { margin-top: 18px; }
+summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.bulk-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin: 10px 0; }
+.bulk-controls > div { display: flex; flex-direction: column; }
+.bulk-controls label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+.bulk-controls input, .bulk-controls select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+button {
+  background: var(--accent); color: white; border: 0;
+  padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+}
+button:hover { opacity: 0.9; }
+button.btn-orange { background: var(--orange); }
+button.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+
 .reverse-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 @media (min-width: 720px) { .reverse-grid { grid-template-columns: repeat(3, 1fr); } }
 .target-row { display: flex; gap: 8px; align-items: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: white; }
@@ -76,20 +99,14 @@ select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
 .rev-card .preds { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; font-size: 0.85rem; }
 .rev-card .preds span b { font-variant-numeric: tabular-nums; }
 
-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.93rem; }
-th, td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
-th:first-child, td:first-child { text-align: left; }
-th { background: #f3f4f6; font-weight: 600; }
-tbody tr:hover { background: #fafafa; }
-
-details { margin-top: 18px; }
-summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
-.bulk-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin: 10px 0; }
-.bulk-controls > div { display: flex; flex-direction: column; }
-.bulk-controls label { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
-.bulk-controls input, .bulk-controls select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
-button { background: var(--accent); color: white; border: 0; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
-button:hover { opacity: 0.9; }
+.sim-grid { display: grid; gap: 10px; }
+.sim-row { display: grid; grid-template-columns: 110px 1fr 60px; align-items: center; gap: 10px; font-size: 0.9rem; }
+.sim-bar { background: #e5e7eb; border-radius: 999px; height: 12px; overflow: hidden; }
+.sim-fill { height: 100%; border-radius: 999px; transition: width 0.3s; }
+.sim-val { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.sim-good { background: #16a34a; color: #15803d; }
+.sim-med { background: #f59e0b; color: #b45309; }
+.sim-bad { background: #ef4444; color: #b91c1c; }
 
 footer { margin-top: 40px; color: var(--muted); font-size: 0.82rem; text-align: center; }
 .loading { color: var(--muted); padding: 20px; text-align: center; }
@@ -101,18 +118,20 @@ canvas { max-width: 100%; }
 <div class="container">
 
 <header>
-  <h1>🌾 쌀 침지 온도 × 냉동조건 → 물성 예측</h1>
-  <p>OLS 회귀모델, 3개 물성, 95% 예측구간 동시 출력. 모델은 브라우저에서 실행됩니다.</p>
+  <h1>🌾 냉동 및 재수화 온도에 따른 동결건조밥의 물성 및 재수화율 예측 모델</h1>
+  <p>OLS 회귀모델 · 3개 물성 · 95% 예측구간. 모델은 브라우저에서 실시간 추론됩니다.</p>
 </header>
 
 <div id="app" class="loading">모델 로딩 중...</div>
 
 <div id="main" style="display:none;">
 
+<!-- ============== 1. 입력 + 예측 결과 ============== -->
 <section class="card">
+  <h3>📊 물성 및 재수화율 예측</h3>
   <div class="controls">
     <div class="control">
-      <label class="title">침지 온도</label>
+      <label class="title">재수화 온도</label>
       <div class="slider-row">
         <input type="range" id="temp" min="20" max="90" value="70" step="1" list="tempTicks">
         <div class="slider-val"><span id="tempVal">70</span> ℃</div>
@@ -122,7 +141,7 @@ canvas { max-width: 100%; }
     </div>
 
     <div class="control">
-      <label class="title">냉동 조건</label>
+      <label class="title">냉동 온도</label>
       <div class="slider-row">
         <input type="range" id="freeze" min="-80" max="-20" value="-40" step="1" list="freezeTicks">
         <div class="slider-val"><span id="freezeVal">-40</span> ℃</div>
@@ -145,14 +164,8 @@ canvas { max-width: 100%; }
 
   <div class="metric-grid">
     <div class="metric">
-      <span class="badge" id="rehyBadge"></span>
-      <div class="label">Rehydration rate (%)</div>
-      <div class="value" id="rehyVal">—</div>
-      <div class="pi" id="rehyPI">—</div>
-    </div>
-    <div class="metric">
       <span class="badge" id="hardBadge"></span>
-      <div class="label">Hardness</div>
+      <div class="label">Hardness (g)</div>
       <div class="value" id="hardVal">—</div>
       <div class="pi" id="hardPI">—</div>
     </div>
@@ -162,27 +175,31 @@ canvas { max-width: 100%; }
       <div class="value" id="cohVal">—</div>
       <div class="pi" id="cohPI">—</div>
     </div>
+    <div class="metric">
+      <span class="badge" id="rehyBadge"></span>
+      <div class="label">Rehydration rate (%)</div>
+      <div class="value" id="rehyVal">—</div>
+      <div class="pi" id="rehyPI">—</div>
+    </div>
   </div>
   <p style="font-size:0.78rem; color:var(--muted); margin: 8px 0 0;">
     배지 = LOTO 교차검증 신뢰도 (🟢 우수 · 🟡 보통 · 🔴 변동 큼, 평균 추세만 신뢰).
   </p>
 </section>
 
+<!-- ============== 2. 햇반 유사도 ============== -->
 <section class="card">
-  <h3 style="margin-top:0">🔄 역방향 예측 — 원하는 물성값 → 최적 조건 찾기</h3>
+  <h3>🍚 햇반(상용 동결건조밥) 대비 유사도</h3>
   <p style="color:var(--muted); font-size:0.88rem; margin-top:0;">
-    체크한 물성에 대해 원하는 값을 입력하면, 측정 범위 안에서 가장 가까운 (T, freeze) 조건을 찾아드립니다.
+    현재 입력 조건의 예측값을 햇반 평균 물성과 비교합니다.
+    햇반: Hardness <b>487.658 g</b>, Cohesiveness <b>0.47011</b>.
   </p>
-  <div class="reverse-grid" id="targetGrid"></div>
-  <div style="display:flex; gap:10px; margin-top:12px; align-items:center; flex-wrap:wrap;">
-    <button id="revRun">최적 조건 찾기</button>
-    <span style="font-size:0.82rem; color:var(--muted);">상위 3개 후보까지 표시 · 정규화 거리 기준</span>
-  </div>
-  <div class="rev-results" id="revResults"></div>
+  <div class="sim-grid" id="simGrid"></div>
 </section>
 
+<!-- ============== 3. 예측 추세 그래프 ============== -->
 <section class="card">
-  <h3 style="margin-top:0">온도별 예측 추세 (선택 freeze 고정)</h3>
+  <h3>📈 재수화 온도 및 냉동 온도에 따른 예측 추세</h3>
   <div style="margin-bottom:8px;">
     <label style="font-size:0.85rem; color:var(--muted);">물성 선택</label>
     <select id="chartProp"></select>
@@ -193,36 +210,54 @@ canvas { max-width: 100%; }
   </p>
 </section>
 
+<!-- ============== 4. 일괄 예측 ============== -->
 <details class="card">
-  <summary>📋 일괄 예측 (CSV 다운로드)</summary>
-  <p style="color:var(--muted); font-size:0.88rem;">아래 범위·간격으로 모든 측정 freeze 조건에 대해 예측합니다.</p>
+  <summary>📋 물성 및 재수화율 예측 결과 다운로드</summary>
+  <p style="color:var(--muted); font-size:0.88rem;">
+    아래 범위·간격으로 모든 측정 냉동 온도 조건에 대해 예측합니다.
+  </p>
   <div class="bulk-controls">
-    <div><label>시작 (℃)</label><input type="number" id="bStart" value="20" min="20" max="90"></div>
-    <div><label>끝 (℃)</label><input type="number" id="bEnd" value="90" min="20" max="90"></div>
+    <div><label>RT 시작 (℃)</label><input type="number" id="bStart" value="20" min="20" max="90"></div>
+    <div><label>RT 끝 (℃)</label><input type="number" id="bEnd" value="90" min="20" max="90"></div>
     <div><label>간격 (℃)</label><input type="number" id="bStep" value="10" min="1"></div>
-    <div><label>물성</label><select id="bProp"></select></div>
+    <div><label>물성 및 재수화율</label><select id="bProp"></select></div>
     <button id="bRun">생성 + CSV 다운로드</button>
   </div>
   <div id="bulkPreview" style="max-height:280px; overflow:auto;"></div>
 </details>
 
-</div>
+<!-- ============== 5. 역예측 (예측 묶음 아래) ============== -->
+<section class="card">
+  <h3>🔄 역예측: 목표 물성 → 최적의 실험 조건 도출</h3>
+  <p style="color:var(--muted); font-size:0.88rem; margin-top:0;">
+    목표 물성 값을 입력하면 예측 범위 안에서 가장 가까운 실험 조건(Rehydration Temp. & Freeze Temp.)을 찾아드립니다.
+  </p>
+  <div class="reverse-grid" id="targetGrid"></div>
+  <div style="display:flex; gap:10px; margin-top:12px; align-items:center; flex-wrap:wrap;">
+    <button id="matchHetbahn" class="btn-ghost">🍚 Match Hetbahn</button>
+    <button id="revRun" class="btn-orange">최적 조건 찾기</button>
+    <span style="font-size:0.82rem; color:var(--muted);">상위 3개 후보까지 · 정규화 거리 기준</span>
+  </div>
+  <div class="rev-results" id="revResults"></div>
+</section>
 
 <details style="margin-top:24px; padding: 0 12px;">
   <summary style="cursor:pointer; color:var(--muted); font-size:0.85rem;">📐 모델 상세 (식·검증)</summary>
   <div style="padding: 12px; background: #f9fafb; border-radius: 8px; margin-top: 8px; font-size: 0.85rem;">
-    <p><strong>모델 식:</strong> <code>y ~ T + T² + freeze + freeze² + T:freeze + T:freeze²</code></p>
-    <p><strong>로그 변환:</strong> Hardness (양수·산포 큼)</p>
-    <p><strong>학습 데이터:</strong> 136 측정 (3 침지 온도 × 3 냉동 조건, MAD 기준 이상치 정제)</p>
+    <p><strong>모델 식:</strong> <code>y ~ RT + RT² + FT + FT² + RT:FT + RT:FT²</code> (RT=Rehydration Temp., FT=Freeze Temp.)</p>
+    <p><strong>로그 변환:</strong> Hardness만 (양수·산포 큼). Cohesiveness, Rehydration rate은 원값</p>
+    <p><strong>학습 데이터:</strong> 130 측정 (3 RT × 3 FT, 쌀 15g + 물 24g, MAD 기준 이상치 정제)</p>
     <p><strong>예측구간:</strong> <code>ŷ ± t · √(σ²(1 + x'(X'X)⁻¹x))</code> — 새 관측치 분포 기준</p>
-    <p><strong>검증:</strong> Leave-One-Temperature-Out — 한 온도 통째로 빼고 학습, 빠진 온도 예측</p>
+    <p><strong>검증:</strong> Leave-One-Temperature-Out — 한 RT 통째로 빼고 학습, 빠진 RT 예측</p>
     <p><strong>역방향 예측:</strong> 그리드 서치(4,331점) 후 정규화 유클리드 거리 최소화</p>
-    <p style="color:var(--muted); margin: 6px 0 0;">모든 추론은 브라우저에서 실시간으로 행렬 곱 한 번. 모델 자체는 19KB JSON 한 파일.</p>
+    <p style="color:var(--muted); margin: 6px 0 0;">모든 추론은 브라우저에서 실시간 행렬 곱. 모델 자체는 19KB JSON 한 파일.</p>
   </div>
 </details>
 
+</div>
+
 <footer>
-  학습: 침지 온도 20/50/90℃ × 냉동 -20/-40/-80℃, 총 136 측정. 측정점 사이값은 회귀식 기반 추정.
+  학습: RT 20/50/90℃ × FT -20/-40/-80℃, 쌀 15g + 물 24g, 총 130 측정. 측정점 사이값은 회귀식 기반 추정.
 </footer>
 
 </div>

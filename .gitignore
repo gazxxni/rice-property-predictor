@@ -7,6 +7,7 @@ Cleaned_Dataset*.xlsx
 *.pkl
 DEPLOY.md
 MODEL_EXPLAINED.md
+*.pdf
 app.py
 requirements.txt
 _*.py
