@@ -2,6 +2,7 @@
 
 let MODEL = null;
 let chart = null;
+let radar = null;
 const els = {};
 
 async function init() {
@@ -221,7 +222,86 @@ function update() {
   els.rehyPI.textContent = `PI ${rehy.lo.toFixed(1)} – ${rehy.hi.toFixed(1)}`;
 
   updateSimilarity({ Hardness: hard.mean, Cohesiveness: coh.mean });
+  drawRadar({ Hardness: hard.mean, Cohesiveness: coh.mean, Rehydration: rehy.mean });
   drawChart();
+}
+
+// 레이더 차트용 정규화: mean ± 2σ 범위를 0~100으로 매핑
+function normForRadar(prop, val) {
+  const mean = MODEL.prop_stats.mean[prop];
+  const std = MODEL.prop_stats.std[prop];
+  const lo = mean - 2 * std;
+  const hi = mean + 2 * std;
+  return Math.max(0, Math.min(100, ((val - lo) / (hi - lo)) * 100));
+}
+
+function drawRadar(predicted) {
+  const labels = ['Hardness', 'Cohesiveness', 'Rehydration rate'];
+  const predData = [
+    normForRadar('Hardness', predicted.Hardness),
+    normForRadar('Cohesiveness', predicted.Cohesiveness),
+    normForRadar('Rehydration', predicted.Rehydration),
+  ];
+  // 햇반: Hardness/Cohesiveness는 공식 기준값, Rehydration은 데이터셋 평균
+  const hetData = [
+    normForRadar('Hardness', MODEL.hetbahn.Hardness),
+    normForRadar('Cohesiveness', MODEL.hetbahn.Cohesiveness),
+    normForRadar('Rehydration', MODEL.prop_stats.mean.Rehydration),
+  ];
+
+  const ctx = document.getElementById('radarChart');
+  if (radar) radar.destroy();
+  radar = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Predicted',
+          data: predData,
+          backgroundColor: 'rgba(37, 99, 235, 0.15)',
+          borderColor: '#2563eb',
+          borderWidth: 2,
+          pointBackgroundColor: '#2563eb',
+        },
+        {
+          label: 'Hetbahn',
+          data: hetData,
+          backgroundColor: 'rgba(249, 115, 22, 0.15)',
+          borderColor: '#f97316',
+          borderWidth: 2,
+          pointBackgroundColor: '#f97316',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      animation: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const propKey = ['Hardness', 'Cohesiveness', 'Rehydration'][ctx.dataIndex];
+              const realVal = ctx.dataset.label === 'Predicted'
+                ? predicted[propKey]
+                : (propKey === 'Rehydration' ? MODEL.prop_stats.mean.Rehydration : MODEL.hetbahn[propKey]);
+              const fmt = Math.abs(realVal) < 1 ? realVal.toFixed(3) : (Math.abs(realVal) < 100 ? realVal.toFixed(2) : realVal.toFixed(0));
+              return `${ctx.dataset.label}: ${fmt}`;
+            },
+          },
+        },
+      },
+      scales: {
+        r: {
+          min: 0,
+          max: 100,
+          ticks: { display: false, stepSize: 25 },
+          pointLabels: { font: { size: 11 } },
+        },
+      },
+    },
+  });
 }
 
 function similarityPct(predicted, target, scale) {
